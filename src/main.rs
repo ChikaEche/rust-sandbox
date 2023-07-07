@@ -1,5 +1,7 @@
 #![allow(unused)]
 
+use crate::model::StringEntryController;
+
 pub use self::error::{Error, Result};
 
 use std::fmt::format;
@@ -13,6 +15,7 @@ use serde::Deserialize;
 use tower_cookies::CookieManagerLayer;
 
 mod error;
+mod model;
 mod web;
 
 #[derive(Clone)]
@@ -20,20 +23,15 @@ pub struct StringArr {
     data: Arc<Mutex<Vec<String>>>,
 }
 
-#[derive(Deserialize)]
-struct RequestData {
-    value: String,
-}
-
 #[tokio::main]
-async fn main() {
-    let state = StringArr {
-        data: Arc::new(Mutex::new(vec![])),
-    };
+async fn main() -> Result<()> {
+    let model_controller = StringEntryController::new().await?;
 
     let app = Router::new()
-        .merge(web::routes_get_arr::routes(state.clone()))
-        .merge(web::routes_set_arr::routes(state.clone()))
+        .nest(
+            "/api",
+            web::routes_string_arr::routes(model_controller.clone()),
+        )
         .layer(middleware::map_response(response_mapper))
         .layer(CookieManagerLayer::new());
 
@@ -43,6 +41,8 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
+
+    Ok(())
 }
 
 async fn response_mapper(res: Response) -> Response {
